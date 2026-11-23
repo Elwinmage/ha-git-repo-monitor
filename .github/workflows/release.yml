@@ -27,7 +27,7 @@ jobs:
           sed -i -E "s/^const VERSION = \".*\";/const VERSION = \"$V\";/" card/src/git-repo-monitor-card.ts
           (cd card && npm version "$V" --no-git-tag-version --allow-same-version)
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
       - name: Tests
