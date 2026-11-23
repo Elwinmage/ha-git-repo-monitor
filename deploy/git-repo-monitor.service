@@ -1,0 +1,20 @@
+# User service: install with
+#   pipx install git+https://github.com/Elwinmage/ha-git-repo-monitor
+#   mkdir -p ~/.config/git-repo-monitor && cp config.example.yaml ~/.config/git-repo-monitor/config.yaml
+#   cp deploy/git-repo-monitor.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now git-repo-monitor
+#   loginctl enable-linger "$USER"   # keep it running without an open session
+[Unit]
+Description=Git repository monitor for Home Assistant (MQTT)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=%h/.local/bin/git-repo-monitor -c %h/.config/git-repo-monitor/config.yaml
+# Secrets: GITHUB_TOKEN=..., GRM_MQTT_PASSWORD=..., GRM_WEBHOOK_SECRET=...
+EnvironmentFile=-%h/.config/git-repo-monitor/env
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

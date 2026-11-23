@@ -1,0 +1,60 @@
+# ha-git-repo-monitor configuration.
+# Secrets can also come from the environment: GITHUB_TOKEN, GRM_MQTT_PASSWORD, GRM_WEBHOOK_SECRET...
+
+# Name of this machine in MQTT topics and HA devices (defaults to the hostname).
+host_id: alare
+log_level: INFO
+
+mqtt:
+  host: 192.168.0.109
+  port: 1883
+  username: git_monitor
+  password: # or GRM_MQTT_PASSWORD
+  tls: false
+  base_topic: git_repo_monitor
+  discovery_prefix: homeassistant
+
+github:
+  # Fine-grained token: Metadata, Contents, Actions (read+write for "re-run failed"),
+  # Pull requests (read) on your repositories. Without a token only the local state is published.
+  token: # or GITHUB_TOKEN
+  # Activity feed polled every events_interval seconds (resolved from the token when empty).
+  login:
+  events_interval: 60
+  # Safety net: complete refresh of every repository.
+  full_refresh_interval: 1200
+  # After a push/webhook, the repository is polled every hot_interval seconds until its
+  # workflows are finished (at least hot_grace seconds, at most hot_duration seconds).
+  hot_interval: 20
+  hot_grace: 120
+  hot_duration: 900
+
+webhook:
+  # GitHub webhooks for real-time updates (see README). Requires a secret.
+  enabled: false
+  host: 0.0.0.0
+  port: 8099
+  path: /webhook
+  secret: # or GRM_WEBHOOK_SECRET
+
+repos:
+  # Every git working copy found below these directories is monitored.
+  base_dirs:
+    - /srv/appdata/homeassistant/git
+  # 1 = direct children only.
+  depth: 1
+  # fnmatch patterns on directory names.
+  exclude: []
+  rescan_interval: 600
+  # Uncommitted changes are not visible in .git: they are checked every status_interval seconds.
+  status_interval: 90
+  debounce: 2.0
+  # Run "git fetch" during refreshes (needed to see commits to pull).
+  fetch: true
+  coverage_paths:
+    - reports/coverage.xml
+    - coverage.xml
+
+analytics:
+  # Active installs of custom integrations from analytics.home-assistant.io (once a day).
+  enabled: true

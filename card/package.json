@@ -1,0 +1,18 @@
+{
+  "name": "git-repo-monitor-card",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lovelace card showing the state of git repositories published by ha-git-repo-monitor",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lit": "^3.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0"
+  }
+}

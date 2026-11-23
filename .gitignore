@@ -1,0 +1,7 @@
+__pycache__/
+*.egg-info/
+.venv/
+reports/
+.coverage
+card/node_modules/
+card/dist/

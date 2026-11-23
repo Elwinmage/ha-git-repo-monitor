@@ -1,0 +1,21 @@
+services:
+  git-repo-monitor:
+    image: ghcr.io/elwinmage/ha-git-repo-monitor:latest
+    # Or build locally:
+    # build: ..
+    container_name: git-repo-monitor
+    restart: unless-stopped
+    # Run with the uid owning the repositories so that "git fetch" does not leave
+    # files your own account cannot modify (use "0:0" if the repositories belong to root).
+    user: "${GRM_UID:-1000}:${GRM_GID:-1000}"
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GRM_MQTT_PASSWORD=${GRM_MQTT_PASSWORD}
+      - GRM_WEBHOOK_SECRET=${GRM_WEBHOOK_SECRET}
+      - HOME=/tmp
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      # Same path inside and outside: the card then shows the real host path.
+      - /srv/appdata/homeassistant/git:/srv/appdata/homeassistant/git
+    ports:
+      - "8099:8099"

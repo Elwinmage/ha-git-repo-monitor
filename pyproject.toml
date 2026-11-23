@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ha-git-repo-monitor"
+dynamic = ["version"]
+description = "Publish the state of local git repositories and their GitHub counterparts to Home Assistant over MQTT"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiohttp>=3.9",
+    "aiomqtt>=2.0",
+    "PyYAML>=6.0",
+    "watchfiles>=0.21",
+]
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-asyncio", "pytest-cov"]
+
+[project.scripts]
+git-repo-monitor = "git_repo_monitor.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "git_repo_monitor.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["src", "tests"]
+addopts = "--cov=git_repo_monitor --cov-branch --cov-report=term-missing --cov-report=xml:reports/coverage.xml --cov-report=html:reports/htmlcov --cov-fail-under=100"
+
+[tool.coverage.run]
+source = ["git_repo_monitor"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "BLE", "SIM", "RUF"]
+ignore = ["S603", "S607"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "S108"]
