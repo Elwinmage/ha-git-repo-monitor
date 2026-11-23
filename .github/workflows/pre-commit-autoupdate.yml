@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: "3.14"
       - run: pip install pre-commit && pre-commit autoupdate
-      - uses: peter-evans/create-pull-request@v7
+      - uses: peter-evans/create-pull-request@v8
         with:
           branch: chore/pre-commit-autoupdate
           title: "chore: pre-commit autoupdate"
