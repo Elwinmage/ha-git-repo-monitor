@@ -215,7 +215,9 @@ async def collect_local(repo: RepoInfo, coverage_paths: list[str]) -> dict[str, 
         if code == 0 and len(parts) == 2:
             ahead, behind = int(parts[0]), int(parts[1])
 
-    _, porcelain = await run_git(path, "status", "--porcelain")
+    # --untracked-files=normal overrides a host-wide status.showUntrackedFiles
+    # setting, which would otherwise hide untracked files from the dirty count.
+    _, porcelain = await run_git(path, "status", "--porcelain", "--untracked-files=normal")
     dirty_count = len([line for line in porcelain.splitlines() if line.strip()])
 
     code, tag = await run_git(path, "describe", "--tags", "--abbrev=0")

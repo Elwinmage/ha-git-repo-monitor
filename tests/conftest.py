@@ -25,10 +25,34 @@ def git(path: Path, *args: str) -> str:
             "GIT_COMMITTER_NAME": "t",
             "GIT_COMMITTER_EMAIL": "t@example.com",
             "HOME": str(path),
+            "GIT_CONFIG_NOSYSTEM": "1",
             "PATH": "/usr/bin:/bin:/usr/local/bin",
         },
     )
     return result.stdout.strip()
+
+
+@pytest.fixture(autouse=True)
+def isolated_git_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the git setup of the host machine out of the tests.
+
+    The code under test runs git with the ambient environment, so the developer's
+    own setup would otherwise change the collected state: 'status.showUntrackedFiles'
+    hides untracked files, and the global ignore file can exclude the very files a
+    test creates. HOME and XDG_CONFIG_HOME have to be redirected as well, because
+    the default global ignore file is '$XDG_CONFIG_HOME/git/ignore' (falling back to
+    '$HOME/.config/git/ignore'), which GIT_CONFIG_GLOBAL does not cover.
+    """
+    home = tmp_path / "home"
+    (home / ".config" / "git").mkdir(parents=True)
+    empty = home / "gitconfig"
+    empty.write_text("")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home / ".config"))
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(empty))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    for name in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY"):
+        monkeypatch.delenv(name, raising=False)
 
 
 @pytest.fixture
