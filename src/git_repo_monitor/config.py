@@ -98,6 +98,11 @@ ENV_OVERRIDES: dict[str, tuple[str, str]] = {
 }
 
 
+def _is_text(field_type: str) -> bool:
+    """True for fields declared as plain text (``str`` or ``str | None``)."""
+    return field_type.replace(" ", "") in ("str", "str|None")
+
+
 def _build(cls: type, data: dict[str, Any], where: str) -> Any:
     if not isinstance(data, dict):
         raise ConfigError(f"'{where}' must be a mapping")
@@ -110,15 +115,20 @@ def _build(cls: type, data: dict[str, Any], where: str) -> Any:
         default = known[name].default_factory() if callable(known[name].default_factory) else None
         if is_dataclass(default):
             kwargs[name] = _build(type(default), value or {}, f"{where}.{name}" if where else name)
+        elif _is_text(known[name].type) and value is not None and not isinstance(value, str):
+            # YAML reads an all-digit password (or host_id, token...) as a number: keep text textual.
+            kwargs[name] = str(value)
         else:
             kwargs[name] = value
     return cls(**kwargs)
 
 
-def _coerce(current: Any, raw: str) -> Any:
-    if isinstance(current, bool):
+def _coerce(field_type: str, raw: str) -> Any:
+    """Convert an environment value to the type declared on the field, not to the current value's type."""
+    plain = field_type.replace(" ", "")
+    if plain.startswith("bool"):
         return raw.strip().lower() in ("1", "true", "yes", "on")
-    if isinstance(current, int):
+    if plain.startswith("int"):
         return int(raw)
     return raw
 
@@ -135,7 +145,8 @@ def load_config(path: str | os.PathLike[str] | None, env: dict[str, str] | None 
     for var, (section, key) in ENV_OVERRIDES.items():
         if var in env and env[var] != "":
             target = getattr(config, section) if section else config
-            setattr(target, key, _coerce(getattr(target, key), env[var]))
+            declared = next(f.type for f in fields(target) if f.name == key)
+            setattr(target, key, _coerce(declared, env[var]))
     if env.get("GRM_BASE_DIRS"):
         config.repos.base_dirs = [d for d in env["GRM_BASE_DIRS"].split(":") if d]
 

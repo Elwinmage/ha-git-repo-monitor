@@ -186,6 +186,34 @@ async def test_collect_local_full(tmp_path: Path, make_repo: Callable[..., Path]
     assert local["coverage"] is None
 
 
+async def test_collect_local_dirty_ignores_host_status_config(
+    tmp_path: Path, make_repo: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Untracked files count as dirty even when the host hides them from git status."""
+    repo = make_repo("hidden")
+    (repo / "dirty.txt").write_text("d")
+    hostile = tmp_path / "gitconfig-hostile"
+    hostile.write_text("[status]\n\tshowUntrackedFiles = no\n")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(hostile))
+    info = RepoInfo(slug="hidden", name="hidden", path=repo, git_dir=repo / ".git")
+    local = await collect_local(info, [])
+    assert local["dirty"] is True
+    assert local["dirty_count"] == 1
+
+
+async def test_collect_local_dirty_honours_gitignore(make_repo: Callable[..., Path]) -> None:
+    """Files ignored by the repository itself are not uncommitted work."""
+    repo = make_repo("ignored")
+    (repo / ".gitignore").write_text("*.log\n")
+    (repo / "build.log").write_text("noise")
+    git(repo, "add", ".gitignore")
+    git(repo, "commit", "-q", "-m", "ignore logs")
+    info = RepoInfo(slug="ignored", name="ignored", path=repo, git_dir=repo / ".git")
+    local = await collect_local(info, [])
+    assert local["dirty"] is False
+    assert local["dirty_count"] == 0
+
+
 async def test_collect_local_empty_repo(make_repo: Callable[..., Path]) -> None:
     repo = make_repo("empty", commit=False)
     info = RepoInfo(slug="e", name="e", path=repo, git_dir=repo / ".git")
