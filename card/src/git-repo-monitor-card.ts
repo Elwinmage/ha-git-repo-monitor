@@ -4,7 +4,7 @@ import { translator } from "./i18n";
 import { configSchema } from "./editor";
 import { MONITOR_ID, repoRank, type CardConfig, type Hass, type RepoPayload } from "./types";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 const STATUS_ENTITY_RE = /^sensor\.git_.+_status$/;
 
 // Lower is shown first when sorting by status.
