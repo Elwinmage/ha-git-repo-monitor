@@ -122,3 +122,15 @@ def test_errors(tmp_path: Path) -> None:
 def test_default_env_is_os_environ(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GRM_BASE_DIRS", "/from/env")
     assert load_config(None).repos.base_dirs == ["/from/env"]
+
+
+def test_numeric_text_fields_stay_text(tmp_path: Path) -> None:
+    """YAML reads a digits-only password as an int; paho needs a string."""
+    path = write(tmp_path, "host_id: 42\nmqtt:\n  username: 1234\n  password: 12345678\nrepos:\n  base_dirs: [/a]\n")
+    config = load_config(path, env={})
+    assert config.host_id == "42"
+    assert config.mqtt.username == "1234"
+    assert config.mqtt.password == "12345678"
+    # The environment keeps the declared type too: a numeric password is not turned into an int.
+    config = load_config(path, env={"GRM_MQTT_PASSWORD": "0042"})
+    assert config.mqtt.password == "0042"
