@@ -31,46 +31,125 @@ Instalações ativas: retiradas do ficheiro público de estatísticas do Home As
 
 ## Instalação
 
-### 1. O serviço
+Este tutorial vai de uma máquina vazia até um cartão a funcionar. Conte cerca de vinte minutos.
 
-Copie [`config.example.yaml`](../../config.example.yaml) para `config.yaml` e adapte-o (broker MQTT, pastas dos repositórios).
+Antes de começar são necessários: a máquina onde estão as suas cópias de trabalho, com **Docker** ou **Python ≥ 3.12**; um **broker MQTT** já ligado ao Home Assistant (o add-on Mosquitto serve perfeitamente) e a integração **MQTT** configurada; **HACS** instalado. O token do GitHub é opcional: sem ele, o cartão mostra ainda assim o estado local.
 
-**Docker** (recomendado) — ver [`deploy/docker-compose.yml`](../../deploy/docker-compose.yml):
+### Passo 1 — Obter um acesso MQTT
+
+O serviço liga-se ao broker como qualquer outro cliente. Com o add-on Mosquitto, o mais simples é um utilizador dedicado do Home Assistant: *Configurações → Pessoas → Adicionar pessoa*, ative *Permitir que a pessoa inicie sessão*, chame-lhe `git_monitor`. Anote o endereço do broker (a máquina do Home Assistant, porta 1883 por omissão) e esse utilizador/palavra-passe.
+
+### Passo 2 — Criar o token do GitHub (recomendado)
+
+No GitHub: *Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token*.
+
+- *Repository access*: **All repositories**, ou apenas os que vigia;
+- *Permissions*: **Metadata** (leitura), **Contents** (leitura), **Actions** (leitura **e escrita** — a escrita só serve para *Repetir as falhas*), **Pull requests** (leitura).
+
+Copie logo o valor `github_pat_…`, o GitHub nunca o mostrará outra vez. O mesmo token serve para o `git fetch`: os remotos SSH (`git@github.com:…`) são reescritos em HTTPS para esse comando, pelo que não é preciso chave SSH no contentor. Sem token, o serviço escreve `No GitHub token: only the local state is monitored` nos registos e publica apenas o estado local.
+
+### Passo 3 — Escrever a configuração
+
+Na máquina onde estão os repositórios:
 
 ```bash
-cd deploy
-cp ../config.example.yaml config.yaml   # depois edite-o
-GITHUB_TOKEN=github_pat_xxx GRM_MQTT_PASSWORD=xxx docker compose up -d
+git clone https://github.com/Elwinmage/ha-git-repo-monitor
+cd ha-git-repo-monitor/deploy
+cp ../config.example.yaml config.yaml
 ```
 
-Monte os repositórios no mesmo caminho que no anfitrião. Execute o contentor com o uid dono dos repositórios (`user:`); caso contrário, `git fetch` deixa ficheiros que a sua conta não consegue modificar.
+Três chaves a adaptar em `config.yaml`, o resto pode ficar como está:
 
-**Sem Docker** (Python ≥ 3.12): `pipx install git+https://github.com/Elwinmage/ha-git-repo-monitor`, depois a unidade systemd de utilizador [`deploy/git-repo-monitor.service`](../../deploy/git-repo-monitor.service).
+```yaml
+host_id: alare                       # nome desta máquina no HA (por omissão: o nome do host)
+mqtt:
+  host: 192.168.0.109                # o seu broker (passo 1)
+  username: git_monitor              # a palavra-passe vem do ambiente, passo 4
+repos:
+  base_dirs:
+    - /srv/appdata/homeassistant/git  # diretório que contém as suas cópias de trabalho
+```
 
-### 2. O cartão
+É vigiada toda a cópia de trabalho git diretamente sob `base_dirs` (`depth: 1`; aumente-o se os seus repositórios estiverem em subdiretórios). Os segredos ficam fora do ficheiro: são lidos do ambiente, e o [`config.example.yaml`](../../config.example.yaml) documenta todas as outras chaves.
 
-HACS → três pontos → *Repositórios personalizados* → `https://github.com/Elwinmage/ha-git-repo-monitor`, tipo **Painel**. Depois adicione o cartão *Git Repo Monitor*: encontra os repositórios sozinho.
+### Passo 4 — Arrancar o serviço
 
-## Token do GitHub
+**Com Docker** (recomendado). Ainda em `deploy/`, ponha os segredos num ficheiro `.env` ao lado do `docker-compose.yml` e descubra o uid/gid proprietário dos repositórios:
 
-Crie um token *fine-grained* sobre os seus repositórios com as permissões **Metadata** (leitura), **Contents** (leitura), **Actions** (leitura e escrita: a escrita só serve para *Relançar as falhas*) e **Pull requests** (leitura). Passe-o através de `GITHUB_TOKEN`.
+```bash
+cat > .env <<'EOF'
+GITHUB_TOKEN=github_pat_xxx
+GRM_MQTT_PASSWORD=xxx
+EOF
+chmod 600 .env
+id -u ; id -g
+```
 
-O mesmo token é usado para `git fetch`: os remotos SSH (`git@github.com:…`) são reescritos em HTTPS para esse comando, por isso não é precisa nenhuma chave SSH no contentor. Sem token, só o estado local é publicado.
+Edite depois o [`deploy/docker-compose.yml`](../../deploy/docker-compose.yml): esses uid/gid em `user:`, e as suas `base_dirs` montadas **no mesmo caminho dentro e fora** (o cartão mostra então o caminho real do host). Arrancar o contentor com outro uid é o erro clássico: o `git fetch` deixaria ficheiros que a sua própria conta já não pode alterar.
 
-## Webhooks em tempo real (opcional)
+```bash
+docker compose up -d
+docker compose logs -f
+```
 
-Sem webhooks, um push a partir de outra máquina ou o fim de uma execução agendada é visto no máximo em 20 minutos. Com eles, em poucos segundos.
+**Sem Docker** (Python ≥ 3.12), com a unidade systemd de utilizador [`deploy/git-repo-monitor.service`](../../deploy/git-repo-monitor.service):
 
-1. Ative `webhook` em `config.yaml` com um segredo (ou `GRM_WEBHOOK_SECRET`).
-2. Exponha a porta do serviço através do seu reverse proxy, em HTTPS. Num Synology: *Painel de controlo → Portal de início de sessão → Avançado → Proxy inverso*, origem `https://seu.dominio:443` com um nome de anfitrião ou uma porta próprios, destino `http://<máquina>:8099`. Só respondem `POST /webhook` e `GET /health`, e cada pedido é verificado pela sua assinatura HMAC.
-3. Crie os webhooks (GitHub CLI com o scope `admin:repo_hook`):
+```bash
+pipx install git+https://github.com/Elwinmage/ha-git-repo-monitor
+mkdir -p ~/.config/git-repo-monitor ~/.config/systemd/user
+cp config.yaml ~/.config/git-repo-monitor/config.yaml
+printf 'GITHUB_TOKEN=github_pat_xxx\nGRM_MQTT_PASSWORD=xxx\n' > ~/.config/git-repo-monitor/env
+chmod 600 ~/.config/git-repo-monitor/env
+cp git-repo-monitor.service ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now git-repo-monitor
+loginctl enable-linger "$USER"   # mantê-lo ativo sem sessão aberta
+journalctl --user -u git-repo-monitor -f
+```
+
+Nos dois casos, os registos devem mostrar uma linha `Repository <nome> found at <caminho>` por repositório e depois `Watching N git directories`. Uma linha `Configuration error: …` significa que o `config.yaml` foi recusado: a tabela no fim desta secção dá as causas habituais.
+
+### Passo 5 — Verificar no Home Assistant
+
+*Configurações → Dispositivos e serviços → MQTT → dispositivos*: um dispositivo por repositório, mais um para o próprio serviço. Abra um deles — `sensor.git_<repo>_status` já deve conter `ok`, `needs_sync`, `ci_failed`… Se nada aparecer estando os registos limpos, o Home Assistant não está a ler o broker onde o serviço escreve.
+
+### Passo 6 — Instalar o cartão
+
+*HACS → três pontos (canto superior direito) → Repositórios personalizados*: URL `https://github.com/Elwinmage/ha-git-repo-monitor`, tipo **Dashboard**, *Adicionar*. Abra depois *Git Repo Monitor card* e descarregue-o. Recarregue a página (`Ctrl-Shift-R`) para que o navegador pegue no novo ficheiro.
+
+### Passo 7 — Adicionar o cartão a um painel
+
+*Editar painel → Adicionar cartão* e procure *Git Repo Monitor*. Encontra os repositórios sozinho; tudo o resto é opcional e regula-se no editor visual, ver [Opções do cartão](#opções-do-cartão).
+
+A instalação está feita. O passo seguinte é opcional: faz a parte GitHub do cartão reagir em segundos em vez de minutos.
+
+### Passo 8 (opcional) — Webhooks em tempo real
+
+Sem webhooks, um push de outra máquina ou o fim de uma execução agendada é visto no máximo em 20 minutos. Com eles, em alguns segundos.
+
+1. Em `config.yaml`, ponha `webhook.enabled: true`, acrescente o segredo em `GRM_WEBHOOK_SECRET` (no `.env` ou no ficheiro `env`) e reinicie o serviço: o registo mostra `Webhook listening on 0.0.0.0:8099/webhook`.
+2. Exponha essa porta através do seu proxy inverso, em HTTPS. Num Synology: *Painel de controlo → Portal de início de sessão → Avançado → Proxy inverso*, origem `https://seu.dominio:443` com um nome de host ou uma porta dedicados, destino `http://<máquina>:8099`. Só `POST /webhook` e `GET /health` respondem, e cada pedido é verificado pela sua assinatura HMAC — `curl https://seu.dominio/health` deve responder `ok`.
+3. Crie os webhooks com o GitHub CLI (`gh auth login`, com o âmbito `admin:repo_hook`):
 
 ```bash
 GRM_WEBHOOK_SECRET=xxx scripts/setup_webhooks.sh https://seu.dominio/webhook            # todos os seus repositórios
 GRM_WEBHOOK_SECRET=xxx scripts/setup_webhooks.sh https://seu.dominio/webhook owner/repo # alguns
 ```
 
-O script pode ser executado de novo: atualiza os webhooks existentes. Execute-o de novo quando criar um repositório.
+O script pode voltar a ser executado: atualiza os webhooks existentes. Execute-o de novo quando criar um repositório. No GitHub, *Settings → Webhooks* de um repositório mostra cada entrega e a sua resposta (`202 accepted`).
+
+### Se algo não correr bem
+
+| Sintoma | Onde olhar |
+|---|---|
+| `Configuration error: repos.base_dirs must list at least one directory` | ficheiro errado (`-c`) ou `base_dirs` deixado vazio |
+| `MQTT connection lost: …` em ciclo | endereço do broker, utilizador, `GRM_MQTT_PASSWORD` |
+| Nenhum dispositivo no Home Assistant com os registos limpos | integração **MQTT** ausente, ou `discovery_prefix` diferente de `homeassistant` |
+| `Cannot list <diretório>` | `base_dirs` errado, ou diretório ilegível para o uid do serviço |
+| Nenhum repositório encontrado | cópias de trabalho mais profundas do que `depth`, ou padrão `exclude` demasiado amplo |
+| Repositórios publicados mas sem dados do GitHub | sem token (`No GitHub token` nos registos) ou permissões em falta |
+| `git fetch failed for <repo>` | token sem **Contents** (leitura), ou repositório privado fora do seu âmbito |
+| `dubious ownership` nos registos | contentor arrancado com um uid diferente do proprietário dos repositórios |
+| *Git Repo Monitor* ausente da lista de cartões | descarga do HACS não terminada, ou página não recarregada |
 
 ## Entidades do Home Assistant
 
