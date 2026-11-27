@@ -174,6 +174,9 @@ Dazu ein Gerät für den Dienst: Anzahl der Repositories, verbleibendes GitHub-A
 type: custom:git-repo-monitor-card
 title: Meine Repositories  # optional
 host: alare                # nur dieser Rechner (Standard: alle)
+repos:                     # nur diese Repositories, in dieser Reihenfolge (Standard: alle)
+  - alare/ha-reef-card
+  - alare/ha-reefbeat-component
 sort: status               # status (Probleme zuerst) | name
 show_ok: true              # aktuelle Repositories anzeigen
 expand_problems: false     # Repositories mit CI-Fehler aufklappen
@@ -185,7 +188,7 @@ show_stars: true
 show_installs: true
 ```
 
-Alles lässt sich im visuellen Editor einstellen. Ein Klick auf eine Zeile zeigt die fehlgeschlagenen Workflows, den letzten Commit, das letzte Release, die Installationen pro Version und die Schaltflächen *Aktualisieren*, *Fetch* und *Fehlgeschlagene neu starten*.
+Alles lässt sich im visuellen Editor einstellen, die Liste der Repositories eingeschlossen: fügen Sie die gewünschten hinzu und verschieben Sie sie nach oben oder unten, bis die Reihenfolge passt. Leere Liste: alle Repositories, nach `sort` sortiert; eine gefüllte Liste hat Vorrang vor `sort`. Ein Eintrag kann auch ein bloßer Verzeichnisname sein (`ha-reef-card`) und gilt dann auf jedem Rechner. Ein Klick auf eine Zeile zeigt die fehlgeschlagenen Workflows, den letzten Commit, das letzte Release, die Installationen pro Version und die Schaltflächen *Aktualisieren*, *Fetch* und *Fehlgeschlagene neu starten*.
 
 ## MQTT-Topics
 

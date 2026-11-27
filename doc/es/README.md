@@ -174,6 +174,9 @@ Además, un dispositivo para el servicio: número de repositorios, cuota restant
 type: custom:git-repo-monitor-card
 title: Mis repositorios    # opcional
 host: alare                # solo esta máquina (por defecto: todas)
+repos:                     # solo estos repositorios, en este orden (por defecto: todos)
+  - alare/ha-reef-card
+  - alare/ha-reefbeat-component
 sort: status               # status (problemas primero) | name
 show_ok: true              # mostrar los repositorios al día
 expand_problems: false     # desplegar los repositorios con CI fallida
@@ -185,7 +188,7 @@ show_stars: true
 show_installs: true
 ```
 
-Todo se ajusta en el editor visual. Un clic en una fila muestra los workflows fallidos, el último commit, la última release, las instalaciones por versión y los botones *Actualizar*, *Fetch* y *Relanzar los fallos*.
+Todo se ajusta en el editor visual, incluida la lista de repositorios: añada los que quiera y súbalos o bájelos hasta obtener el orden deseado. Lista vacía: todos los repositorios, ordenados según `sort`; una lista rellenada prevalece sobre `sort`. Una entrada también puede ser un simple nombre de directorio (`ha-reef-card`), para reconocerlo en cualquier máquina. Un clic en una fila muestra los workflows fallidos, el último commit, la última release, las instalaciones por versión y los botones *Actualizar*, *Fetch* y *Relanzar los fallos*.
 
 ## Topics MQTT
 

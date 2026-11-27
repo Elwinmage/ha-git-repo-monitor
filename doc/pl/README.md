@@ -174,6 +174,9 @@ Do tego jedno urządzenie usługi: liczba repozytoriów, pozostały limit API Gi
 type: custom:git-repo-monitor-card
 title: Moje repozytoria    # opcjonalnie
 host: alare                # tylko ta maszyna (domyślnie: wszystkie)
+repos:                     # tylko te repozytoria, w tej kolejności (domyślnie: wszystkie)
+  - alare/ha-reef-card
+  - alare/ha-reefbeat-component
 sort: status               # status (najpierw problemy) | name
 show_ok: true              # pokazuj aktualne repozytoria
 expand_problems: false     # rozwijaj repozytoria z nieudanym CI
@@ -185,7 +188,7 @@ show_stars: true
 show_installs: true
 ```
 
-Wszystko można ustawić w edytorze wizualnym. Kliknięcie wiersza pokazuje nieudane workflowy, ostatni commit, ostatnie wydanie, instalacje według wersji oraz przyciski *Odśwież*, *Fetch* i *Uruchom ponownie nieudane*.
+Wszystko można ustawić w edytorze wizualnym, łącznie z listą repozytoriów: dodaj te, które chcesz, a potem przesuwaj je w górę lub w dół, aż kolejność będzie pasować. Pusta lista: wszystkie repozytoria, sortowane według `sort`; wypełniona lista ma pierwszeństwo przed `sort`. Wpisem może być też sama nazwa katalogu (`ha-reef-card`), rozpoznawana na każdej maszynie. Kliknięcie wiersza pokazuje nieudane workflowy, ostatni commit, ostatnie wydanie, instalacje według wersji oraz przyciski *Odśwież*, *Fetch* i *Uruchom ponownie nieudane*.
 
 ## Tematy MQTT
 

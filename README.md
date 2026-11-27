@@ -174,6 +174,9 @@ Plus one daemon device: number of repositories, GitHub API quota left, *Refresh 
 type: custom:git-repo-monitor-card
 title: My repositories     # optional
 host: alare                # only this machine (default: all)
+repos:                     # only these repositories, in this order (default: all of them)
+  - alare/ha-reef-card
+  - alare/ha-reefbeat-component
 sort: status               # status (problems first) | name
 show_ok: true              # show up-to-date repositories
 expand_problems: false     # expand repositories whose CI failed
@@ -185,7 +188,7 @@ show_stars: true
 show_installs: true
 ```
 
-Everything can be set in the visual editor. Click a row to see the failed workflows, the last commit, the latest release, the installs per version and the *Refresh*, *Fetch* and *Re-run failed* buttons.
+Everything can be set in the visual editor, the list of repositories included: add the ones you want, then move them up or down until the order suits you. An empty list shows them all, sorted by `sort`; a list set here wins over `sort`. An entry can also be a bare directory name (`ha-reef-card`) to match it on every host. Click a row to see the failed workflows, the last commit, the latest release, the installs per version and the *Refresh*, *Fetch* and *Re-run failed* buttons.
 
 ## MQTT topics
 

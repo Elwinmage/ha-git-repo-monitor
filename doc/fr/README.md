@@ -174,6 +174,9 @@ Plus un appareil pour le démon : nombre de dépôts, quota d'API GitHub restant
 type: custom:git-repo-monitor-card
 title: Mes dépôts          # optionnel
 host: alare                # seulement cette machine (défaut : toutes)
+repos:                     # seulement ces dépôts, dans cet ordre (défaut : tous)
+  - alare/ha-reef-card
+  - alare/ha-reefbeat-component
 sort: status               # status (problèmes en premier) | name
 show_ok: true              # afficher les dépôts à jour
 expand_problems: false     # déplier les dépôts dont la CI a échoué
@@ -185,7 +188,7 @@ show_stars: true
 show_installs: true
 ```
 
-Tout se règle dans l'éditeur visuel. Un clic sur une ligne affiche les workflows en échec, le dernier commit, la dernière release, les installations par version et les boutons *Rafraîchir*, *Fetch* et *Relancer les échecs*.
+Tout se règle dans l'éditeur visuel, la liste des dépôts comprise : ajoutez ceux que vous voulez, puis montez-les ou descendez-les jusqu'à obtenir l'ordre voulu. Liste vide : tous les dépôts, triés selon `sort` ; liste renseignée : elle l'emporte sur `sort`. Une entrée peut aussi être un simple nom de répertoire (`ha-reef-card`), pour le reconnaître sur n'importe quelle machine. Un clic sur une ligne affiche les workflows en échec, le dernier commit, la dernière release, les installations par version et les boutons *Rafraîchir*, *Fetch* et *Relancer les échecs*.
 
 ## Topics MQTT
 

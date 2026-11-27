@@ -1,8 +1,10 @@
 import { LitElement, html, css, nothing, type PropertyValues, type TemplateResult } from "lit";
 import { translator } from "./i18n";
+// Importing the editor also registers <git-repo-monitor-card-editor>.
+import { configSchema } from "./editor";
+import { MONITOR_ID, repoRank, type CardConfig, type Hass, type RepoPayload } from "./types";
 
 const VERSION = "0.1.0";
-const MONITOR_ID = "git_repo_monitor";
 const STATUS_ENTITY_RE = /^sensor\.git_.+_status$/;
 
 // Lower is shown first when sorting by status.
@@ -18,55 +20,6 @@ const SEVERITY: Record<string, number> = {
 const FAILED = new Set(["failure", "cancelled", "startup_failure", "timed_out"]);
 const SUCCESS = new Set(["success", "skipped", "neutral"]);
 
-interface Workflow {
-  name: string;
-  state: string;
-  branch?: string | null;
-  event?: string | null;
-  url?: string | null;
-}
-
-interface RepoPayload {
-  monitor: string;
-  host: string;
-  repo: string;
-  name: string;
-  path: string;
-  full_name: string | null;
-  html_url: string | null;
-  status: string;
-  version: string | null;
-  local: {
-    branch?: string | null;
-    upstream?: string | null;
-    ahead?: number;
-    behind?: number;
-    dirty?: boolean;
-    dirty_count?: number;
-    tag?: string | null;
-    commits_since_tag?: number | null;
-    last_commit?: { sha: string; subject: string; date: string } | null;
-    coverage?: number | null;
-  };
-  remote: {
-    available?: boolean;
-    stars?: number;
-    forks?: number;
-    open_issues?: number;
-    open_prs?: number;
-    dependabot_prs?: number;
-    latest_release?: { tag: string; published_at: string; url: string } | null;
-    unreleased_commits?: number | null;
-    workflows?: Workflow[];
-  };
-  ci: { total: number; ok: number; failed: number; running: number };
-  stars: number | null;
-  stars_delta: number | null;
-  installs: { total: number; versions: Record<string, number> } | null;
-  cmd_topic: string;
-  updated_at: string;
-}
-
 interface Row {
   entityId: string;
   status: string;
@@ -74,35 +27,7 @@ interface Row {
   data: RepoPayload;
 }
 
-interface CardConfig {
-  type: string;
-  title?: string;
-  host?: string;
-  sort?: "status" | "name";
-  show_ok?: boolean;
-  expand_problems?: boolean;
-  compact?: boolean;
-  show_version?: boolean;
-  show_ci?: boolean;
-  show_coverage?: boolean;
-  show_stars?: boolean;
-  show_installs?: boolean;
-}
-
-interface HassEntity {
-  entity_id: string;
-  state: string;
-  attributes: Record<string, any>;
-}
-
-interface Hass {
-  states: Record<string, HassEntity>;
-  locale?: { language: string };
-  language?: string;
-  callService(domain: string, service: string, data: Record<string, unknown>): Promise<unknown>;
-}
-
-const DEFAULTS: Required<Omit<CardConfig, "type" | "title" | "host">> = {
+const DEFAULTS: Required<Omit<CardConfig, "type" | "title" | "host" | "repos">> = {
   sort: "status",
   show_ok: true,
   expand_problems: false,
@@ -155,43 +80,14 @@ class GitRepoMonitorCard extends LitElement {
     return {};
   }
 
+  static getConfigElement(): HTMLElement {
+    return document.createElement("git-repo-monitor-card-editor");
+  }
+
   static getConfigForm() {
     const t = globalTranslator();
-    const bool = (name: string) => ({ name, selector: { boolean: {} } });
     return {
-      schema: [
-        { name: "title", selector: { text: {} } },
-        { name: "host", selector: { text: {} } },
-        {
-          name: "sort",
-          selector: {
-            select: {
-              mode: "dropdown",
-              options: [
-                { value: "status", label: t("editor.sort.status") },
-                { value: "name", label: t("editor.sort.name") },
-              ],
-            },
-          },
-        },
-        {
-          type: "grid",
-          name: "",
-          schema: [bool("show_ok"), bool("expand_problems"), bool("compact")],
-        },
-        {
-          type: "expandable",
-          name: "",
-          title: t("editor.columns"),
-          schema: [
-            bool("show_version"),
-            bool("show_ci"),
-            bool("show_coverage"),
-            bool("show_stars"),
-            bool("show_installs"),
-          ],
-        },
-      ],
+      schema: configSchema(t),
       computeLabel: (schema: { name: string }) => t(`editor.${schema.name}`),
       assertConfig: (config: CardConfig) => {
         if (config.sort && !["status", "name"].includes(config.sort)) throw new Error("sort: status | name");
@@ -201,6 +97,8 @@ class GitRepoMonitorCard extends LitElement {
 
   setConfig(config: CardConfig): void {
     if (!config) throw new Error("Invalid configuration");
+    if (config.repos !== undefined && !(Array.isArray(config.repos) && config.repos.every((r) => typeof r === "string")))
+      throw new Error('repos: list of "<host>/<repo>" or "<repo>" names');
     this._config = { ...DEFAULTS, ...config };
   }
 
@@ -230,6 +128,15 @@ class GitRepoMonitorCard extends LitElement {
       rows.push({ entityId: entity.entity_id, offline, status: offline ? "offline" : data.status, data });
     }
     const visible = this._config.show_ok ? rows : rows.filter((r) => r.status !== "ok");
+    const selection = this._config.repos ?? [];
+    if (selection.length) {
+      // Only the configured repositories, in the configured order: "sort" does not apply.
+      return visible
+        .map((row) => ({ row, rank: repoRank(row.data, selection) }))
+        .filter((item) => item.rank >= 0)
+        .sort((a, b) => a.rank - b.rank)
+        .map((item) => item.row);
+    }
     return visible.sort((a, b) => {
       if (this._config.sort === "status") {
         const diff = (SEVERITY[a.status] ?? 9) - (SEVERITY[b.status] ?? 9);
